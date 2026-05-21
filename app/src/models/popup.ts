@@ -37,6 +37,7 @@ export enum PopupType {
   RepositorySettings = 'RepositorySettings',
   AddRepository = 'AddRepository',
   CreateRepository = 'CreateRepository',
+  DiscoverRepositories = 'DiscoverRepositories',
   CloneRepository = 'CloneRepository',
   CreateBranch = 'CreateBranch',
   SignIn = 'SignIn',
@@ -169,6 +170,7 @@ export type PopupDetail =
     }
   | { type: PopupType.AddRepository; path?: string }
   | { type: PopupType.CreateRepository; path?: string }
+  | { type: PopupType.DiscoverRepositories; path?: string }
   | {
       type: PopupType.CloneRepository
       initialURL: string | null

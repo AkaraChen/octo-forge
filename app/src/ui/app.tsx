@@ -79,7 +79,11 @@ import { OpenWithExternalEditor } from './open-with-external-editor/open-with-ex
 import { RepositorySettings } from './repository-settings'
 import { AppError } from './app-error'
 import { MissingRepository } from './missing-repository'
-import { AddExistingRepository, CreateRepository } from './add-repository'
+import {
+  AddExistingRepository,
+  CreateRepository,
+  DiscoverRepositories,
+} from './add-repository'
 import { CloneRepository } from './clone-repository'
 import { CreateBranch } from './create-branch'
 import { SignIn } from './sign-in'
@@ -798,6 +802,12 @@ export class App extends React.Component<IAppProps, IAppState> {
 
   private showAddLocalRepo = () => {
     return this.props.dispatcher.showPopup({ type: PopupType.AddRepository })
+  }
+
+  private showDiscoverRepositories = () => {
+    this.props.dispatcher.showPopup({
+      type: PopupType.DiscoverRepositories,
+    })
   }
 
   private showCreateRepository = () => {
@@ -1657,6 +1667,15 @@ export class App extends React.Component<IAppProps, IAppState> {
             dispatcher={this.props.dispatcher}
             initialPath={popup.path}
             isTopMost={isTopMost}
+          />
+        )
+      case PopupType.DiscoverRepositories:
+        return (
+          <DiscoverRepositories
+            key="discover-repositories"
+            dispatcher={this.props.dispatcher}
+            onDismissed={onPopupDismissedFn}
+            initialPath={popup.path}
           />
         )
       case PopupType.CloneRepository:
@@ -3476,6 +3495,7 @@ export class App extends React.Component<IAppProps, IAppState> {
           onCreate={this.showCreateRepository}
           onClone={this.showCloneRepo}
           onAdd={this.showAddLocalRepo}
+          onDiscoverFromDisk={this.showDiscoverRepositories}
           onCreateTutorialRepository={this.showCreateTutorialRepositoryPopup}
           onResumeTutorialRepository={this.onResumeTutorialRepository}
           tutorialPaused={this.isTutorialPaused()}

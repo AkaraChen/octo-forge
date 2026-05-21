@@ -24,6 +24,9 @@ interface INoRepositoriesProps {
   /** A function to call when the user chooses to add a local repository. */
   readonly onAdd: () => void
 
+  /** A function to call when the user chooses to discover repositories on disk. */
+  readonly onDiscoverFromDisk: () => void
+
   /** Called when the user chooses to create a tutorial repository */
   readonly onCreateTutorialRepository: () => void
 
@@ -353,6 +356,16 @@ export class NoRepositoriesView extends React.Component<
     )
   }
 
+  private renderImportFromDiskButton() {
+    return this.renderButtonGroupButton(
+      octicons.desktopDownload,
+      __DARWIN__
+        ? 'Discover Repositories on your Local Drive…'
+        : 'Discover repositories on your local drive…',
+      this.props.onDiscoverFromDisk
+    )
+  }
+
   private renderGetStartedActions() {
     return (
       <div className="content-pane">
@@ -361,6 +374,7 @@ export class NoRepositoriesView extends React.Component<
           {this.renderCloneButton()}
           {this.renderCreateRepositoryButton()}
           {this.renderAddExistingRepositoryButton()}
+          {this.renderImportFromDiskButton()}
         </div>
 
         <div className="drag-drop-info">
