@@ -67,12 +67,16 @@ async function getRepoMtime(repoPath: string): Promise<number> {
 function getRepositoryGlobPatterns(maxDepth: number): ReadonlyArray<string> {
   return Array.from(
     { length: maxDepth },
-    (_, index) => `${new Array(index + 1).fill('*').join('/')}/.git`
+    (_, index) => `${getWildcardPath(index + 1)}/.git`
   )
 }
 
 function getPathSegments(path: string): ReadonlyArray<string> {
   return path.split(/[\\/]/)
+}
+
+function getWildcardPath(depth: number): string {
+  return new Array(depth).fill('*').join('/')
 }
 
 function shouldIncludeRepositoryPath(relativePath: string): boolean {
@@ -89,7 +93,7 @@ function filterNestedRepositories(
   relativePaths: ReadonlyArray<string>
 ): ReadonlyArray<string> {
   const keptPaths = new Array<ReadonlyArray<string>>()
-  const kept = new Array<string>()
+  const nonNestedPaths = new Array<string>()
 
   const sorted = [...relativePaths].sort((a, b) => {
     const depthDifference =
@@ -109,11 +113,11 @@ function filterNestedRepositories(
       continue
     }
 
-    kept.push(relativePath)
+    nonNestedPaths.push(relativePath)
     keptPaths.push(segments)
   }
 
-  return kept
+  return nonNestedPaths
 }
 
 async function globMatches(
