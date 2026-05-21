@@ -35,13 +35,20 @@ const SKIP_DIRECTORY_NAMES = new Set([
   '__pycache__',
 ])
 
-const isAbortError = (err: unknown): boolean =>
-  err instanceof Error && err.name === 'AbortError'
+export function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === 'AbortError'
+}
+
+class AbortError extends Error {
+  public override readonly name = 'AbortError'
+
+  public constructor() {
+    super('Scan aborted')
+  }
+}
 
 const createAbortError = () => {
-  const err = new Error('Scan aborted')
-  err.name = 'AbortError'
-  return err
+  return new AbortError()
 }
 
 const throwIfAborted = (signal: AbortSignal | undefined) => {
@@ -92,8 +99,8 @@ function shouldIncludeRepositoryPath(relativePath: string): boolean {
 function filterNestedRepositories(
   relativePaths: ReadonlyArray<string>
 ): ReadonlyArray<string> {
-  const keptPaths = new Array<ReadonlyArray<string>>()
-  const nonNestedPaths = new Array<string>()
+  const keptPaths: ReadonlyArray<string>[] = []
+  const nonNestedPaths: string[] = []
 
   const sorted = [...relativePaths].sort((a, b) => {
     const depthDifference =
@@ -188,5 +195,3 @@ export async function scanDirectoryForRepositories(
 
   return withMtime
 }
-
-export { isAbortError }
