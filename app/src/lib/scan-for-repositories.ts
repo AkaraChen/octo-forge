@@ -1,6 +1,6 @@
 import { stat } from 'fs/promises'
 import glob from 'glob'
-import { dirname, join } from 'path'
+import { dirname, join, normalize, sep } from 'path'
 
 export interface IScanOptions {
   readonly maxDepth?: number
@@ -89,7 +89,7 @@ function getRepositoryGlobPatterns(maxDepth: number): ReadonlyArray<string> {
 }
 
 function getPathSegments(path: string): ReadonlyArray<string> {
-  return path.split(/[\\/]/)
+  return normalize(path).split(sep)
 }
 
 function getWildcardPath(depth: number): string {
