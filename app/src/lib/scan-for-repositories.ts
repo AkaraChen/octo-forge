@@ -57,15 +57,25 @@ const throwIfAborted = (signal: AbortSignal | undefined) => {
   }
 }
 
-async function getRepoMtime(repoPath: string): Promise<number> {
+async function getRepoMtime(
+  repoPath: string,
+  signal: AbortSignal | undefined
+): Promise<number> {
+  throwIfAborted(signal)
+
   try {
     const s = await stat(join(repoPath, '.git', 'HEAD'))
+    throwIfAborted(signal)
     return s.mtimeMs
   } catch {
+    throwIfAborted(signal)
+
     try {
       const s = await stat(repoPath)
+      throwIfAborted(signal)
       return s.mtimeMs
     } catch {
+      throwIfAborted(signal)
       return 0
     }
   }
@@ -181,9 +191,19 @@ export async function scanDirectoryForRepositories(
   )
 
   const paths = relativePaths.map(relativePath => join(rootPath, relativePath))
+  throwIfAborted(signal)
+
   const withMtime = await Promise.all(
-    paths.map(async path => ({ path, mtimeMs: await getRepoMtime(path) }))
+    paths.map(async path => {
+      throwIfAborted(signal)
+
+      const mtimeMs = await getRepoMtime(path, signal)
+      throwIfAborted(signal)
+
+      return { path, mtimeMs }
+    })
   )
+  throwIfAborted(signal)
 
   // Most recently modified first; tiebreak by path for determinism.
   withMtime.sort((a, b) => {
