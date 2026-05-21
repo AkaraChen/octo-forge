@@ -1,5 +1,9 @@
 import '../lib/logging/renderer/install'
 
+if (process.env.NODE_ENV === 'development') {
+  import('react-grab')
+}
+
 import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 import * as Path from 'path'
