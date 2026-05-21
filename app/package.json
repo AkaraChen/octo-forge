@@ -1,7 +1,8 @@
 {
   "name": "desktop",
-  "productName": "GitHub Desktop",
-  "bundleID": "com.github.GitHubClient",
+  "packageManager": "yarn@1.21.1",
+  "productName": "OctoForge",
+  "bundleID": "com.eric.git-client",
   "companyName": "GitHub, Inc.",
   "version": "3.5.9-beta3",
   "main": "./main.js",
@@ -58,6 +59,7 @@
     "react-confetti": "^6.1.0",
     "react-css-transition-replace": "^3.0.3",
     "react-dom": "^16.8.4",
+    "react-grab": "^0.1.37",
     "react-transition-group": "^4.4.1",
     "react-virtualized": "^9.22.6",
     "registry-js": "^1.16.0",
