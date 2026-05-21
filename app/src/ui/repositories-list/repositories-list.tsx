@@ -423,6 +423,10 @@ export class RepositoriesList extends React.Component<
           : 'Add existing repository…',
         action: this.onAddExistingRepository,
       },
+      {
+        label: __DARWIN__ ? 'Discover Repositories…' : 'Discover repositories…',
+        action: this.onDiscoverRepositories,
+      },
     ]
 
     this.setState({ newRepositoryMenuExpanded: true })
@@ -440,6 +444,10 @@ export class RepositoriesList extends React.Component<
 
   private onAddExistingRepository = () => {
     this.props.dispatcher.showPopup({ type: PopupType.AddRepository })
+  }
+
+  private onDiscoverRepositories = () => {
+    this.props.dispatcher.showPopup({ type: PopupType.DiscoverRepositories })
   }
 
   private onCreateNewRepository = () => {

@@ -1,0 +1,68 @@
+#discover-repositories {
+  width: 500px;
+
+  .discover-repositories-description {
+    margin: 0;
+    padding-top: var(--spacing-half);
+    color: var(--text-secondary-color);
+    font-size: var(--font-size-sm);
+  }
+
+  .discover-repositories-error {
+    margin: 0;
+    color: var(--error-color);
+  }
+
+  .dialog-content.discover-repositories-content {
+    padding: 0;
+    padding-top: var(--spacing-double);
+  }
+
+  .dialog-content > .row-component:not(:last-child) {
+    margin-bottom: 0;
+  }
+}
+
+.discover-repositories {
+  &.filter-list {
+    height: calc(100vh - 400px);
+    max-height: 280px;
+    min-height: 220px;
+    max-width: 100%;
+
+    .filter-field-row {
+      margin: var(--spacing-double);
+      margin-bottom: var(--spacing);
+      margin-top: 0;
+    }
+  }
+}
+
+.discover-repositories-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-grow: 1;
+  min-width: 0;
+  padding: 0 var(--spacing-double);
+  gap: var(--spacing-half);
+
+  .checkbox-component {
+    flex-shrink: 0;
+    margin: 0;
+  }
+
+  .icon {
+    fill: var(--text-secondary-color);
+    width: 16px;
+    flex-shrink: 0;
+  }
+
+  .name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
