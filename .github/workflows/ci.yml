@@ -95,15 +95,21 @@ jobs:
     timeout-minutes: 180
     environment: ${{ inputs.environment }}
     env:
-      RELEASE_CHANNEL:
-        ${{ case(runner.os == 'Windows' && inputs.windows-release-channel != '',
-        inputs.windows-release-channel, inputs.environment) }}
+      RELEASE_CHANNEL: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref }}
           submodules: recursive
+      # `runner` is not available in job-level env. package.ts Azure-signs
+      # every publishable channel, so move Windows off that channel here.
+      - name: Apply Windows release channel override
+        if: runner.os == 'Windows' && inputs.windows-release-channel != ''
+        shell: bash
+        run:
+          echo "RELEASE_CHANNEL=${{ inputs.windows-release-channel }}" >>
+          "$GITHUB_ENV"
       - name: Free disk space on standard macOS runners
         if: runner.os == 'macOS'
         run: |
@@ -193,15 +199,21 @@ jobs:
     timeout-minutes: 180
     environment: ${{ inputs.environment }}
     env:
-      RELEASE_CHANNEL:
-        ${{ case(runner.os == 'Windows' && inputs.windows-release-channel != '',
-        inputs.windows-release-channel, inputs.environment) }}
+      RELEASE_CHANNEL: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref }}
           submodules: recursive
+      # `runner` is not available in job-level env. package.ts Azure-signs
+      # every publishable channel, so move Windows off that channel here.
+      - name: Apply Windows release channel override
+        if: runner.os == 'Windows' && inputs.windows-release-channel != ''
+        shell: bash
+        run:
+          echo "RELEASE_CHANNEL=${{ inputs.windows-release-channel }}" >>
+          "$GITHUB_ENV"
       - name: Free disk space on standard macOS runners
         if: runner.os == 'macOS'
         run: |
