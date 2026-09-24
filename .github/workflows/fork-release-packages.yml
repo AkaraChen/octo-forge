@@ -1,0 +1,226 @@
+name: Fork release packages
+
+# Thin caller around ci.yml. macOS signing defaults ON and fails if the Apple
+# secrets are missing. Tag names containing "unsigned" are the explicit
+# unsigned-proof exception (ad-hoc / unsigned installers, still packaged by
+# script/package.ts). Windows never uses Azure Trusted Signing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sign_macos:
+        description: >-
+          Sign and notarize macOS. On by default. Fails if Apple secrets are
+          missing instead of producing an unsigned build.
+        required: false
+        type: boolean
+        default: true
+      ref:
+        description: Commit SHA to build. Defaults to the triggering commit.
+        required: false
+        type: string
+        default: ''
+  push:
+    tags:
+      - 'v*-akhook*'
+
+run-name:
+  ${{ case(contains(github.ref_name, 'unsigned'), format('{0} (unsigned proof)',
+  github.ref_name), github.ref_name) }}
+
+permissions:
+  contents: write
+  id-token: write
+  actions: read
+
+jobs:
+  config:
+    name: Resolve release settings
+    runs-on: ubuntu-latest
+    outputs:
+      sign_macos: ${{ steps.cfg.outputs.sign_macos }}
+      channel: ${{ steps.cfg.outputs.channel }}
+      ref: ${{ steps.cfg.outputs.ref }}
+      proof: ${{ steps.cfg.outputs.proof }}
+    steps:
+      - id: cfg
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          INPUT_SIGN:
+            ${{ case(github.event_name == 'workflow_dispatch',
+            inputs.sign_macos, 'from-tag') }}
+          INPUT_REF:
+            ${{ case(github.event_name == 'workflow_dispatch', inputs.ref, '')
+            }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$INPUT_SIGN" = "true" ]; then
+              sign=true
+            else
+              sign=false
+            fi
+            ref="$INPUT_REF"
+            if [ -z "$ref" ]; then
+              ref="$SHA"
+            fi
+          else
+            case "$REF_NAME" in
+              *unsigned*) sign=false ;;
+              *) sign=true ;;
+            esac
+            ref="$SHA"
+          fi
+
+          if [ "$sign" = "true" ]; then
+            # Publishable channel: build.ts requires Apple notarization
+            # credentials and will not fall back to an unsigned app.
+            # "test" skips the production/beta Electron version pins.
+            channel=test
+            proof=false
+          else
+            # Not development (e2e update checks stay enabled) and not
+            # publishable (no notarization, no Azure signing).
+            channel=unsigned
+            proof=true
+          fi
+
+          {
+            echo "sign_macos=$sign"
+            echo "channel=$channel"
+            echo "ref=$ref"
+            echo "proof=$proof"
+          } >> "$GITHUB_OUTPUT"
+          echo "macOS signing=$sign channel=$channel ref=$ref proof=$proof"
+
+  require-apple-secrets:
+    name: Require Apple signing secrets
+    needs: config
+    if: needs.config.outputs.sign_macos == 'true'
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Fail if any Apple signing secret is missing
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APPLICATION_CERT: ${{ secrets.APPLE_APPLICATION_CERT }}
+          APPLE_APPLICATION_CERT_PASSWORD:
+            ${{ secrets.APPLE_APPLICATION_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APPLE_ID APPLE_ID_PASSWORD APPLE_TEAM_ID APPLE_APPLICATION_CERT APPLE_APPLICATION_CERT_PASSWORD; do
+            eval "value=\${$name}"
+            if [ -z "$value" ]; then
+              echo "::error::Missing required secret ${name}. macOS signing is on; this workflow will not fall back to an unsigned build."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Apple signing secrets are present."
+
+  packages:
+    name: Build and package
+    needs: [config, require-apple-secrets]
+    if:
+      ${{ !cancelled() && needs.config.result == 'success' &&
+      (needs.require-apple-secrets.result == 'success' ||
+      needs.require-apple-secrets.result == 'skipped') }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/ci.yml
+    with:
+      repository: ${{ github.repository }}
+      ref: ${{ needs.config.outputs.ref }}
+      upload-artifacts: true
+      environment: ${{ needs.config.outputs.channel }}
+      sign: false
+      windows-release-channel: unsigned
+    secrets: inherit
+
+  release:
+    name: Publish GitHub Release
+    needs: [config, packages]
+    if: needs.packages.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Collect installers
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          find artifacts -type f -print
+          find artifacts -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' -o -name '*.msi' -o -name '*.nupkg' \) -exec cp -v {} release/ \;
+          echo "Collected:"
+          find release -type f -exec ls -lh {} \;
+          missing=0
+          for file in \
+            OctoForge-x64.dmg \
+            OctoForge-arm64.dmg \
+            OctoForge-x64.zip \
+            OctoForge-arm64.zip \
+            GitHubDesktopSetup-x64.exe \
+            GitHubDesktopSetup-arm64.exe \
+            GitHubDesktopSetup-x64.msi \
+            GitHubDesktopSetup-arm64.msi
+          do
+            if [ ! -f "release/$file" ]; then
+              echo "::error::Missing installer release/$file"
+              missing=1
+            fi
+          done
+          if ! find release -name '*.nupkg' | grep -q 'x64'; then
+            echo "::error::Missing x64 nupkg"
+            missing=1
+          fi
+          if ! find release -name '*.nupkg' | grep -q 'arm64'; then
+            echo "::error::Missing arm64 nupkg"
+            missing=1
+          fi
+          exit "$missing"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          PROOF: ${{ needs.config.outputs.proof }}
+          CHANNEL: ${{ needs.config.outputs.channel }}
+          RUN_URL:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{
+            github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ "$PROOF" = "true" ]; then
+            title="OctoForge ${TAG} (unsigned proof)"
+            prerelease_flag="--prerelease"
+          else
+            title="OctoForge ${TAG}"
+            prerelease_flag=""
+          fi
+          cat > notes.md <<EOF
+          Run: ${RUN_URL}
+
+          macOS signing: $([ "$PROOF" = "true" ] && echo "OFF (unsigned proof)" || echo "ON (channel ${CHANNEL}, notarized)")
+          Windows signing: OFF (sign=false, no Azure Trusted Signing)
+
+          This release was produced by the repository CI (\`.github/workflows/ci.yml\` via \`workflow_call\`) and \`script/package.ts\`.
+
+          - macOS: \`.dmg\` and \`.zip\` for x64 and arm64
+          - Windows: \`GitHubDesktopSetup-<arch>.exe\`, \`.msi\`, and \`.nupkg\` for x64 and arm64 (Windows package id is still GitHubDesktop)
+          EOF
+          # shellcheck disable=SC2086
+          gh release create "$TAG" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$title" \
+            --notes-file notes.md \
+            --target "$GITHUB_SHA" \
+            $prerelease_flag

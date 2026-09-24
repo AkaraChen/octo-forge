@@ -58,6 +58,15 @@ function packageOSX() {
   cp.execSync(
     `ditto -ck --keepParent "${distPath}/${productName}.app" "${dest}"`
   )
+
+  // distPath is the folder that contains Product.app. hdiutil copies that
+  // folder's children, so the disk image root is the .app bundle.
+  const dmgDest = dest.replace(/\.zip$/, '.dmg')
+  rmSync(dmgDest, { recursive: true, force: true })
+  console.log(`Creating disk image ${dmgDest}…`)
+  cp.execSync(
+    `hdiutil create -volname "${productName}" -srcfolder "${distPath}" -ov -format UDZO "${dmgDest}"`
+  )
 }
 
 function packageWindows() {

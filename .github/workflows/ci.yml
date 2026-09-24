@@ -25,6 +25,17 @@ on:
         type: boolean
         default: true
         required: false
+      # package.ts turns on Azure Trusted Signing for every publishable
+      # channel, ignoring `sign`. Callers that pass sign: false (no Azure
+      # signing on this fork) set this to a non-publishable channel such as
+      # "unsigned". Empty keeps RELEASE_CHANNEL equal to `environment`.
+      windows-release-channel:
+        description: >-
+          Windows RELEASE_CHANNEL override used when this fork must not
+          Azure-sign.
+        required: false
+        type: string
+        default: ''
     secrets:
       AZURE_CODE_SIGNING_TENANT_ID:
       AZURE_CODE_SIGNING_CLIENT_ID:
@@ -72,23 +83,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14-xlarge, windows-2022]
+        os: [macos-15, windows-2022]
         arch: [x64, arm64]
         include:
-          - os: macos-14-xlarge
+          - os: macos-15
             friendlyName: macOS
           - os: windows-2022
             friendlyName: Windows
-    timeout-minutes: 60
+    # macos-14-xlarge is a paid larger runner. macos-15 is the standard
+    # Apple Silicon image and still cross-builds x64, but it is much slower.
+    timeout-minutes: 180
     environment: ${{ inputs.environment }}
     env:
-      RELEASE_CHANNEL: ${{ inputs.environment }}
+      RELEASE_CHANNEL:
+        ${{ case(runner.os == 'Windows' && inputs.windows-release-channel != '',
+        inputs.windows-release-channel, inputs.environment) }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref }}
           submodules: recursive
+      - name: Free disk space on standard macOS runners
+        if: runner.os == 'macOS'
+        run: |
+          df -h /
+          if [ -d /Library/Developer/CommandLineTools ]; then
+            sudo xcode-select -s /Library/Developer/CommandLineTools
+          fi
+          sudo rm -rf /Applications/Xcode.app /Applications/Xcode_*.app
+          sudo rm -rf "$HOME/Library/Developer/CoreSimulator" || true
+          df -h /
       - uses: ./.github/actions/setup-ci-environment
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -142,7 +167,8 @@ jobs:
         with:
           name: ${{matrix.friendlyName}}-${{matrix.arch}}
           path: |
-            dist/GitHub Desktop-${{matrix.arch}}.zip
+            dist/OctoForge-${{matrix.arch}}.zip
+            dist/OctoForge-${{matrix.arch}}.dmg
             dist/GitHubDesktop-*.nupkg
             dist/GitHubDesktopSetup-${{matrix.arch}}.exe
             dist/GitHubDesktopSetup-${{matrix.arch}}.msi
@@ -158,22 +184,34 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14-xlarge
+          - os: macos-15
             friendlyName: macOS
             arch: arm64
           - os: windows-2022
             friendlyName: Windows
             arch: x64
-    timeout-minutes: 60
+    timeout-minutes: 180
     environment: ${{ inputs.environment }}
     env:
-      RELEASE_CHANNEL: ${{ inputs.environment }}
+      RELEASE_CHANNEL:
+        ${{ case(runner.os == 'Windows' && inputs.windows-release-channel != '',
+        inputs.windows-release-channel, inputs.environment) }}
     steps:
       - uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref }}
           submodules: recursive
+      - name: Free disk space on standard macOS runners
+        if: runner.os == 'macOS'
+        run: |
+          df -h /
+          if [ -d /Library/Developer/CommandLineTools ]; then
+            sudo xcode-select -s /Library/Developer/CommandLineTools
+          fi
+          sudo rm -rf /Applications/Xcode.app /Applications/Xcode_*.app
+          sudo rm -rf "$HOME/Library/Developer/CoreSimulator" || true
+          df -h /
       - uses: ./.github/actions/setup-ci-environment
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -212,9 +250,9 @@ jobs:
       - name: Install app on macOS
         if: runner.os == 'macOS'
         run: |
-          rm -rf "/Applications/GitHub Desktop.app"
-          ditto "dist/GitHub Desktop-darwin-arm64/GitHub Desktop.app" "/Applications/GitHub Desktop.app"
-          echo "DESKTOP_E2E_APP_PATH=/Applications/GitHub Desktop.app/Contents/MacOS/GitHub Desktop" >> "$GITHUB_ENV"
+          rm -rf "/Applications/OctoForge.app"
+          ditto "dist/OctoForge-darwin-arm64/OctoForge.app" "/Applications/OctoForge.app"
+          echo "DESKTOP_E2E_APP_PATH=/Applications/OctoForge.app/Contents/MacOS/OctoForge" >> "$GITHUB_ENV"
       - name: Install app on Windows
         if: runner.os == 'Windows'
         shell: pwsh
