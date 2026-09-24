@@ -1,18 +1,21 @@
 import assert from 'node:assert'
+import { mkdirSync, writeFileSync, type Stats } from 'fs'
 import { stat as actualStat } from 'fs/promises'
-import { mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { describe, it, mock } from 'node:test'
 
 import { createTempDirectory } from '../helpers/temp'
 
-type TStat = typeof actualStat
+// fs.promises.stat's overload set includes a bigint return. This test and the
+// scanner only call stat(path) and read Stats.mtimeMs.
+type StatPath = Parameters<typeof actualStat>[0]
+type StatFn = (path: StatPath) => Promise<Stats>
 
-let statBehavior: TStat = path => actualStat(path)
+let statBehavior: StatFn = path => actualStat(path)
 
 mock.module('fs/promises', {
-  exports: {
-    stat: (path: Parameters<TStat>[0]) => statBehavior(path),
+  namedExports: {
+    stat: (path: StatPath) => statBehavior(path),
   },
 })
 
