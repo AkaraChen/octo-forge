@@ -22,7 +22,7 @@ on:
         default: ''
   push:
     tags:
-      - 'v*-akhook*'
+      - 'v*-octoforge*'
 
 run-name:
   ${{ case(contains(github.ref_name, 'unsigned'), format('{0} (unsigned proof)',
